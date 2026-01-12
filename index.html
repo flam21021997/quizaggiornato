@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz Master Pegaso</title>
+
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  background: #f2f2f7;
+  padding: 20px;
+}
+.card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+}
+button {
+  width: 100%;
+  padding: 14px;
+  margin: 6px 0;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  background: #007aff;
+  color: white;
+}
+button.correct { background: #34c759; }
+button.wrong { background: #ff3b30; }
+button.secondary { background: #5856d6; }
+.hidden { display:none; }
+#top {
+  display:flex;
+  justify-content:space-between;
+  font-size:14px;
+  color:#555;
+  margin-bottom:6px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <div id="top">
+    <div id="info"></div>
+    <div id="timer"></div>
+  </div>
+
+  <h2 id="question"></h2>
+  <div id="answers"></div>
+
+  <button id="nextBtn" class="secondary hidden">Avanti</button>
+  <button id="startExamBtn">🎯 Simulazione Test</button>
+  <button id="exitExamBtn" class="secondary hidden">⬅️ Torna allo studio</button>
+</div>
+
+<script src="questions.js"></script>
+
+
+<script>
+const QUESTIONS = [...questions_1, ...questions_2, ...questions_3];
+
+// metriche
+QUESTIONS.forEach(q=>{
+  q._seen ??= 0;
+  q._wrong ??= 0;
+});
+
+let mode="study";
+let current=null;
+let answered=false;
+let done=0;
+
+// ===== TIMER =====
+let timerId=null;
+let timeLeft=0;
+
+// ===== UTILS =====
+function shuffle(a){ return a.sort(()=>Math.random()-0.5); }
+
+// ===== LOGICA STUDIO (come prima) =====
+let cycle=0;
+function pickStudy(){
+  const unseen=QUESTIONS.filter(q=>q._seen===0);
+  if(unseen.length) return unseen[Math.floor(Math.random()*unseen.length)];
+
+  const once=QUESTIONS.filter(q=>q._seen===1);
+  if(once.length) return once[Math.floor(Math.random()*once.length)];
+
+  cycle++;
+  const sorted=[...QUESTIONS].sort((a,b)=>
+    (b._wrong/b._seen||0)-(a._wrong/a._seen||0)
+  );
+
+  return cycle%4!==0 ? sorted[0] : sorted[Math.floor(sorted.length*0.7)];
+}
+
+// ===== RENDER STUDIO =====
+function renderStudy(){
+  clearInterval(timerId);
+  mode="study";
+  answered=false;
+  document.getElementById("timer").innerText="";
+  document.getElementById("startExamBtn").classList.remove("hidden");
+  document.getElementById("exitExamBtn").classList.add("hidden");
+  document.getElementById("nextBtn").classList.add("hidden");
+
+  current=pickStudy();
+  current._seen++;
+
+  document.getElementById("info").innerText =
+    `Studio — fatte: ${done} | Errori: ${current._wrong}/${current._seen}`;
+
+  renderQuestion(current);
+}
+
+// ===== RENDER DOMANDA =====
+function renderQuestion(q){
+  document.getElementById("question").innerText=q.q;
+  const box=document.getElementById("answers");
+  box.innerHTML="";
+  shuffle([q.correct,...q.wrong]).forEach(a=>{
+    const b=document.createElement("button");
+    b.innerText=a;
+    b.onclick=()=>answer(a,b);
+    box.appendChild(b);
+  });
+}
+
+// ===== RISPOSTA =====
+function answer(ans,btn){
+  if(answered) return;
+  answered=true;
+  document.querySelectorAll("#answers button").forEach(b=>b.disabled=true);
+
+  if(ans===current.correct){
+    btn.classList.add("correct");
+  } else {
+    btn.classList.add("wrong");
+    current._wrong++;
+    document.querySelectorAll("#answers button")
+      .forEach(b=>{ if(b.innerText===current.correct) b.classList.add("correct");});
+  }
+
+  if(mode==="study"){
+    done++;
+    document.getElementById("nextBtn").classList.remove("hidden");
+  } else {
+    setTimeout(nextExam,800);
+  }
+}
+
+// ===== ESAME =====
+let exam=[], idx=0, score=0, wrongList=[];
+
+function startExam(){
+  mode="exam";
+  exam=shuffle([...QUESTIONS]).slice(0,30);
+  idx=0; score=0; wrongList=[];
+  timeLeft=30*60;
+
+  document.getElementById("startExamBtn").classList.add("hidden");
+  document.getElementById("exitExamBtn").classList.remove("hidden");
+
+  startTimer();
+  renderExam();
+}
+
+function startTimer(){
+  updateTimer();
+  timerId=setInterval(()=>{
+    timeLeft--;
+    updateTimer();
+    if(timeLeft<=0) finishExam();
+  },1000);
+}
+
+function updateTimer(){
+  const m=Math.floor(timeLeft/60);
+  const s=timeLeft%60;
+  document.getElementById("timer").innerText=`⏱️ ${m}:${s.toString().padStart(2,"0")}`;
+}
+
+function renderExam(){
+  answered=false;
+  current=exam[idx];
+  document.getElementById("info").innerText=`Simulazione — ${idx+1}/30`;
+  renderQuestion(current);
+}
+
+function nextExam(){
+  idx++;
+  if(idx>=30) finishExam();
+  else renderExam();
+}
+
+function finishExam(){
+  clearInterval(timerId);
+  let html=`<h3>Risultato: ${score}/30</h3><h4>Domande sbagliate:</h4>`;
+  wrongList.forEach(w=>{
+    html+=`<p><b>${w.q}</b><br>✔️ ${w.correct}</p>`;
+  });
+  document.getElementById("question").innerHTML=html;
+  document.getElementById("answers").innerHTML="";
+  document.getElementById("info").innerText="";
+  document.getElementById("timer").innerText="";
+}
+
+// override risposta esame
+const baseAnswer=answer;
+answer=function(ans,btn){
+  if(mode==="study") return baseAnswer(ans,btn);
+  if(answered) return;
+  answered=true;
+
+  document.querySelectorAll("#answers button").forEach(b=>b.disabled=true);
+
+  if(ans===current.correct){
+    score++;
+    btn.classList.add("correct");
+  } else {
+    btn.classList.add("wrong");
+    wrongList.push(current);
+    document.querySelectorAll("#answers button")
+      .forEach(b=>{ if(b.innerText===current.correct) b.classList.add("correct");});
+  }
+
+  setTimeout(nextExam,800);
+};
+
+// ===== BOTTONI =====
+document.getElementById("nextBtn").onclick=renderStudy;
+document.getElementById("startExamBtn").onclick=startExam;
+document.getElementById("exitExamBtn").onclick=renderStudy;
+
+// avvio
+renderStudy();
+</script>
+</body>
+</html>
