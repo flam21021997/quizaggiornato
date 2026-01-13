@@ -139,27 +139,34 @@ function renderQuestion(q){
 }
 
 // ===== RISPOSTA =====
-function answer(ans,btn){
+function answer(isCorrect, btn){
   if(answered) return;
-  answered=true;
-  document.querySelectorAll("#answers button").forEach(b=>b.disabled=true);
+  answered = true;
 
-  if(ans===current.correct){
+  document.querySelectorAll("#answers button").forEach(b => b.disabled = true);
+
+  if(isCorrect){
     btn.classList.add("correct");
   } else {
     btn.classList.add("wrong");
     current._wrong++;
-    document.querySelectorAll("#answers button")
-      .forEach(b=>{ if(b.innerText===current.correct) b.classList.add("correct");});
+
+    // illumina SEMPRE la risposta corretta
+    document.querySelectorAll("#answers button").forEach(b => {
+      if (b.dataset.correct === "true") {
+        b.classList.add("correct");
+      }
+    });
   }
 
-  if(mode==="study"){
+  if(mode === "study"){
     done++;
     document.getElementById("nextBtn").classList.remove("hidden");
   } else {
-    setTimeout(nextExam,800);
+    setTimeout(nextExam, 800);
   }
 }
+
 
 // ===== ESAME =====
 let exam=[], idx=0, score=0, wrongList=[];
@@ -217,27 +224,7 @@ function finishExam(){
   document.getElementById("timer").innerText="";
 }
 
-// override risposta esame
-const baseAnswer=answer;
-answer=function(ans,btn){
-  if(mode==="study") return baseAnswer(ans,btn);
-  if(answered) return;
-  answered=true;
-
-  document.querySelectorAll("#answers button").forEach(b=>b.disabled=true);
-
-  if(ans===current.correct){
-    score++;
-    btn.classList.add("correct");
-  } else {
-    btn.classList.add("wrong");
-    wrongList.push(current);
-    document.querySelectorAll("#answers button")
-      .forEach(b=>{ if(b.innerText===current.correct) b.classList.add("correct");});
-  }
-
-  setTimeout(nextExam,800);
-};
+// override risposta e
 
 // ===== BOTTONI =====
 document.getElementById("nextBtn").onclick=renderStudy;
@@ -249,5 +236,6 @@ renderStudy();
 </script>
 </body>
 </html>
+
 
 
