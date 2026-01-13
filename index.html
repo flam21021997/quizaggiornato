@@ -119,13 +119,21 @@ function renderStudy(){
 
 // ===== RENDER DOMANDA =====
 function renderQuestion(q){
-  document.getElementById("question").innerText=q.q;
-  const box=document.getElementById("answers");
-  box.innerHTML="";
-  shuffle([q.correct,...q.wrong]).forEach(a=>{
-    const b=document.createElement("button");
-    b.innerText=a;
-    b.onclick=()=>answer(a,b);
+  document.getElementById("question").innerText = q.q;
+  const box = document.getElementById("answers");
+  box.innerHTML = "";
+
+  shuffle([
+    { text: q.correct, correct: true },
+    ...q.wrong.map(w => ({ text: w, correct: false }))
+  ]).forEach(a => {
+    const b = document.createElement("button");
+    b.innerText = a.text;
+
+    // 🔑 salviamo se è corretta o no
+    b.dataset.correct = a.correct;
+
+    b.onclick = () => answer(a.correct, b);
     box.appendChild(b);
   });
 }
@@ -241,4 +249,5 @@ renderStudy();
 </script>
 </body>
 </html>
+
 
